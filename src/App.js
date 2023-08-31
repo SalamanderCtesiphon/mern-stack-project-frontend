@@ -23,7 +23,7 @@ function App() {
           </Route>
 
           <Route path='users'>
-            <Route index element={<UsersList} />
+            <Route index element={<UsersList />} />
           </Route>
 
 
