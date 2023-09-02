@@ -80,7 +80,7 @@ const Login = () => {
                     <input
                         className="form__input"
                         type="password"
-                        id="password"
+                        id="password" 
                         onChange={handlePwdInput}
                         value={password}
                         required
