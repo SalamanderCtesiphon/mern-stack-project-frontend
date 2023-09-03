@@ -1,15 +1,17 @@
 import { useParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { selectUserById } from './usersApiSlice'
-import EditUserForm from './EditUserForm'
+import { selectNoteById } from './notesApiSlice'
+import { selectAllUsers } from '../users/usersApiSlice'
+import EditNoteForm from './EditNoteForm'
 
-const EditUser = () => {
+const EditNote = () => {
     const { id } = useParams()
 
-    const user = useSelector(state => selectUserById(state, id))
+    const note = useSelector(state => selectNoteById(state, id))
+    const users = useSelector(selectAllUsers)
 
-    const content = user ? <EditUserForm user={user} /> : <p>Loading...</p>
+    const content = note && users ? <EditNoteForm note={note} users={users} /> : <p>Loading...</p>
 
     return content
 }
-export default EditUser
+export default EditNote

@@ -1,105 +1,94 @@
 import { useState, useEffect } from "react"
-import { useUpdateUserMutation, useDeleteUserMutation } from "./usersApiSlice"
+import { useUpdateNoteMutation, useDeleteNoteMutation } from "./notesApiSlice"
 import { useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSave, faTrashCan } from "@fortawesome/free-solid-svg-icons"
-import { ROLES } from "../../config/roles"
+import useAuth from "../../hooks/useAuth"
 
-const USER_REGEX = /^[A-z]{3,20}$/
-const PWD_REGEX = /^[A-z0-9!@#$%]{4,12}$/
+const EditNoteForm = ({ note, users }) => {
 
-const EditUserForm = ({ user }) => {
+    const { isManager, isAdmin } = useAuth()
 
-    const [updateUser, {
+    const [updateNote, {
         isLoading,
         isSuccess,
         isError,
         error
-    }] = useUpdateUserMutation()
+    }] = useUpdateNoteMutation()
 
-    const [deleteUser, {
+    const [deleteNote, {
         isSuccess: isDelSuccess,
         isError: isDelError,
         error: delerror
-    }] = useDeleteUserMutation()
+    }] = useDeleteNoteMutation()
 
     const navigate = useNavigate()
 
-    const [username, setUsername] = useState(user.username)
-    const [validUsername, setValidUsername] = useState(false)
-    const [password, setPassword] = useState('')
-    const [validPassword, setValidPassword] = useState(false)
-    const [roles, setRoles] = useState(user.roles)
-    const [active, setActive] = useState(user.active)
+    const [title, setTitle] = useState(note.title)
+    const [text, setText] = useState(note.text)
+    const [completed, setCompleted] = useState(note.completed)
+    const [userId, setUserId] = useState(note.user)
 
     useEffect(() => {
-        setValidUsername(USER_REGEX.test(username))
-    }, [username])
 
-    useEffect(() => {
-        setValidPassword(PWD_REGEX.test(password))
-    }, [password])
-
-    useEffect(() => {
-        console.log(isSuccess)
         if (isSuccess || isDelSuccess) {
-            setUsername('')
-            setPassword('')
-            setRoles([])
-            navigate('/dash/users')
+            setTitle('')
+            setText('')
+            setUserId('')
+            navigate('/dash/notes')
         }
 
     }, [isSuccess, isDelSuccess, navigate])
 
-    const onUsernameChanged = e => setUsername(e.target.value)
-    const onPasswordChanged = e => setPassword(e.target.value)
+    const onTitleChanged = e => setTitle(e.target.value)
+    const onTextChanged = e => setText(e.target.value)
+    const onCompletedChanged = e => setCompleted(prev => !prev)
+    const onUserIdChanged = e => setUserId(e.target.value)
 
-    const onRolesChanged = e => {
-        const values = Array.from(
-            e.target.selectedOptions,
-            (option) => option.value
-        )
-        setRoles(values)
-    }
+    const canSave = [title, text, userId].every(Boolean) && !isLoading
 
-    const onActiveChanged = () => setActive(prev => !prev)
-
-    const onSaveUserClicked = async (e) => {
-        if (password) {
-            await updateUser({ id: user.id, username, password, roles, active })
-        } else {
-            await updateUser({ id: user.id, username, roles, active })
+    const onSaveNoteClicked = async (e) => {
+        if (canSave) {
+            await updateNote({ id: note.id, user: userId, title, text, completed })
         }
     }
 
-    const onDeleteUserClicked = async () => {
-        await deleteUser({ id: user.id })
+    const onDeleteNoteClicked = async () => {
+        await deleteNote({ id: note.id })
     }
 
-    const options = Object.values(ROLES).map(role => {
+    const created = new Date(note.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+    const updated = new Date(note.updatedAt).toLocaleString('en-US', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+
+    const options = users.map(user => {
         return (
             <option
-                key={role}
-                value={role}
+                key={user.id}
+                value={user.id}
 
-            > {role}</option >
+            > {user.username}</option >
         )
     })
 
-    let canSave
-    if (password) {
-        canSave = [roles.length, validUsername, validPassword].every(Boolean) && !isLoading
-    } else {
-        canSave = [roles.length, validUsername].every(Boolean) && !isLoading
-    }
-
     const errClass = (isError || isDelError) ? "errmsg" : "offscreen"
-    const validUserClass = !validUsername ? 'form__input--incomplete' : ''
-    const validPwdClass = password && !validPassword ? 'form__input--incomplete' : ''
-    const validRolesClass = !Boolean(roles.length) ? 'form__input--incomplete' : ''
+    const validTitleClass = !title ? "form__input--incomplete" : ''
+    const validTextClass = !text ? "form__input--incomplete" : ''
 
     const errContent = (error?.data?.message || delerror?.data?.message) ?? ''
 
+
+    let deleteButton = null
+    if (isManager || isAdmin) {
+        deleteButton = (
+            <button
+                className="icon-button"
+                title="Delete"
+                onClick={onDeleteNoteClicked}
+            >
+                <FontAwesomeIcon icon={faTrashCan} />
+            </button>
+        )
+    }
 
     const content = (
         <>
@@ -107,78 +96,76 @@ const EditUserForm = ({ user }) => {
 
             <form className="form" onSubmit={e => e.preventDefault()}>
                 <div className="form__title-row">
-                    <h2>Edit User</h2>
+                    <h2>Edit Note #{note.ticket}</h2>
                     <div className="form__action-buttons">
                         <button
                             className="icon-button"
                             title="Save"
-                            onClick={onSaveUserClicked}
+                            onClick={onSaveNoteClicked}
                             disabled={!canSave}
                         >
                             <FontAwesomeIcon icon={faSave} />
                         </button>
-                        <button
-                            className="icon-button"
-                            title="Delete"
-                            onClick={onDeleteUserClicked}
-                        >
-                            <FontAwesomeIcon icon={faTrashCan} />
-                        </button>
+                        {deleteButton}
                     </div>
                 </div>
-                <label className="form__label" htmlFor="username">
-                    Username: <span className="nowrap">[3-20 letters]</span></label>
+                <label className="form__label" htmlFor="note-title">
+                    Title:</label>
                 <input
-                    className={`form__input ${validUserClass}`}
-                    id="username"
-                    name="username"
+                    className={`form__input ${validTitleClass}`}
+                    id="note-title"
+                    name="title"
                     type="text"
                     autoComplete="off"
-                    value={username}
-                    onChange={onUsernameChanged}
+                    value={title}
+                    onChange={onTitleChanged}
                 />
 
-                <label className="form__label" htmlFor="password">
-                    Password: <span className="nowrap">[empty = no change]</span> <span className="nowrap">[4-12 chars incl. !@#$%]</span></label>
-                <input
-                    className={`form__input ${validPwdClass}`}
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={password}
-                    onChange={onPasswordChanged}
+                <label className="form__label" htmlFor="note-text">
+                    Text:</label>
+                <textarea
+                    className={`form__input form__input--text ${validTextClass}`}
+                    id="note-text"
+                    name="text"
+                    value={text}
+                    onChange={onTextChanged}
                 />
+                <div className="form__row">
+                    <div className="form__divider">
+                        <label className="form__label form__checkbox-container" htmlFor="note-completed">
+                            WORK COMPLETE:
+                            <input
+                                className="form__checkbox"
+                                id="note-completed"
+                                name="completed"
+                                type="checkbox"
+                                checked={completed}
+                                onChange={onCompletedChanged}
+                            />
+                        </label>
 
-                <label className="form__label form__checkbox-container" htmlFor="user-active">
-                    ACTIVE:
-                    <input
-                        className="form__checkbox"
-                        id="user-active"
-                        name="user-active"
-                        type="checkbox"
-                        checked={active}
-                        onChange={onActiveChanged}
-                    />
-                </label>
-
-                <label className="form__label" htmlFor="roles">
-                    ASSIGNED ROLES:</label>
-                <select
-                    id="roles"
-                    name="roles"
-                    className={`form__select ${validRolesClass}`}
-                    multiple={true}
-                    size="3"
-                    value={roles}
-                    onChange={onRolesChanged}
-                >
-                    {options}
-                </select>
-
+                        <label className="form__label form__checkbox-container" htmlFor="note-username">
+                            ASSIGNED TO:</label>
+                        <select
+                            id="note-username"
+                            name="username"
+                            className="form__select"
+                            value={userId}
+                            onChange={onUserIdChanged}
+                        >
+                            {options}
+                        </select>
+                    </div>
+                    <div className="form__divider">
+                        <p className="form__created">Created:<br />{created}</p>
+                        <p className="form__updated">Updated:<br />{updated}</p>
+                    </div>
+                </div>
             </form>
         </>
     )
 
     return content
 }
-export default EditUserForm
+
+export default EditNoteForm
